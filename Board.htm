@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Board</title>
+
+    <link href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.21/themes/smoothness/jquery-ui.css" type="text/css" rel="Stylesheet" />
+    <script type="text/javascript" language="javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+    <script type="text/javascript" language="javascript" src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.18/jquery-ui.min.js"></script>
+
+    <script type="text/javascript" language="javascript">
+        var animation = null;
+        $(document).ready(function () {
+            var reqAnimFrame = window.mozRequestAnimationFrame ||
+                window.webkitRequestAnimationFrame ||
+                window.msRequestAnimationFrame ||
+                window.oRequestAnimationFrame
+                ;
+
+            var run = function (animation) {
+                if (animation.isEnabled()) {
+                    reqAnimFrame(function () {
+                        run(animation);
+                    });
+
+                    animation.drawFrame();
+                }
+            };
+
+            $canvas = $("#canvas");
+            setDrawingAreas($canvas.width(), $canvas.height());
+
+            $canvas.resizable({
+                stop: function (event, ui) {
+                    setDrawingAreas(ui.size.width, ui.size.height);
+                }
+            });
+
+            $("#draw").click(function () {
+                if (animation !== null) {
+                    animation.stop();
+                }
+
+                animation = new Animation();
+
+                run(animation);
+            });
+
+            $("#stop").click(function () {
+                if (animation !== null) {
+                    animation.stop();
+                }
+            });
+
+            $("#restart").click(function () {
+                if (animation === null) {
+                    animation = new Animation();
+                }
+                else {
+                    animation.start();
+                }
+
+                run(animation);
+            });
+
+            $("#boardWidth, #boardHeight").change(function () {
+                setCursor(parseInt($("#boardWidth").val()) - 1, parseInt($("#boardHeight").val()) - 1);
+            });
+
+            $("#foreColor, #backColor").change(function () {
+
+                animation.recolorRequested();
+            });
+
+            $("#swapColors").click(function () {
+                var f = $("#foreColor").val();
+                var b = $("#backColor").val();
+                $("#foreColor").val(b);
+                $("#backColor").val(f);
+
+                animation.recolorRequested();
+            });
+        });
+
+        function setDrawingAreas(maxWidth, maxHeight) {
+            var minWidth = Math.floor(maxWidth / 2) + 1;
+            var minHeight = Math.floor(maxHeight / 2) + 1;
+            
+            $("#canvasWidth").text(maxWidth);
+            $("#canvasHeight").text(maxHeight);
+
+            $boardWidth = $("#boardWidth");
+            $boardHeight = $("#boardHeight");
+            $boardWidth.attr("max", maxWidth).attr("min", minWidth);
+            $boardHeight.attr("max", maxHeight).attr("min", minHeight);
+
+            var curWidth = parseInt($boardWidth.val());
+            var curHeight = parseInt($boardHeight.val());
+
+            if (curWidth > maxWidth) {
+                $boardWidth.val(maxWidth);
+            }
+
+            if (curWidth < minWidth) {
+                $boardWidth.val(minWidth);
+            }
+
+            if (curHeight > maxHeight) {
+                $boardHeight.val(maxHeight);
+            }
+
+            if (curHeight < minHeight) {
+                $boardHeight.val(minHeight);
+            }
+
+            setCursor(maxWidth - 1, maxHeight - 1);
+        }
+
+        function setCursor(maxX, maxY) {
+            $cursorX = $("#cursorX");
+            $cursorY = $("#cursorY");
+            $cursorX.attr("max", maxX);
+            $cursorY.attr("max", maxY);
+
+            var curX = parseInt($cursorX.val());
+            var curY = parseInt($cursorY.val());
+
+            if (curX > maxX) {
+                $cursorX.val(maxX);
+            }
+
+            if (curY > maxY) {
+                $cursorY.val(maxY);
+            }
+        }
+
+        function Color(hex, r, g, b) {
+            if (hex !== null && hex.length !== 0) {
+                hex = hex.replace("0x", "");
+                hex = hex.replace("0X", "");
+                hex = hex.replace("#", "");
+
+                r = parseInt(hex.substr(0, 2), 16);
+                g = parseInt(hex.substr(2, 2), 16);
+                b = parseInt(hex.substr(4, 2), 16);
+            }
+
+            this.red = r;
+            this.green = g;
+            this.blue = b;
+
+            this.equals = function (color) {
+                var equal = false;
+
+                if (color.hasOwnProperty("red")
+                    && color.hasOwnProperty("green")
+                    && color.hasOwnProperty("blue")) {
+
+                    equal = this.red == color.red && this.green == color.green && this.blue == color.blue;
+                }
+
+                return equal;
+            };
+        }
+
+        function Board(maxWidth, maxHeight, boardWidth, boardHeight, speed, orientation, cursorPosX, cursorPosY) {
+            var width = boardWidth;
+            var height = boardHeight;
+            var speed = speed;
+
+            var top = -1;
+            var left = -1;
+
+            var horizontalDir = 0;
+            var verticalDir = 0;
+
+            switch (orientation.toLowerCase()) {
+                case "nw":
+                    horizontalDir = 1;
+                    verticalDir = 1;
+                    top = 0;
+                    left = 0;
+                    break;
+                case "ne":
+                    horizontalDir = -1;
+                    verticalDir = 1;
+                    top = 0;
+                    left = maxWidth - boardWidth;
+                    break;
+                case "sw":
+                    horizontalDir = 1;
+                    verticalDir = -1;
+                    top = maxHeight - boardHeight;
+                    left = 0;
+                    break;
+                case "se":
+                    horizontalDir = -1;
+                    verticalDir = -1;
+                    top = maxHeight - boardHeight;
+                    left = maxWidth - boardWidth;
+                    break;
+            }
+
+            var right = left + width - 1;
+            var bottom = top + height - 1;
+
+            switch (orientation.toLowerCase()) {
+                case "ne":
+                    cursorPosX = right - cursorPosX;
+                    break;
+                case "sw":
+                    cursorPosY = bottom - cursorPosY;
+                    break;
+                case "se":
+                    cursorPosX = right - cursorPosX;
+                    cursorPosY = bottom - cursorPosY;
+                    break;
+            }
+
+            var cursor = { x: cursorPosX, y: cursorPosY };
+
+            this.drawFrame = function (context, foreColor, backColor) {
+                for (var i = 0; i < speed; i++) {
+                    var nextX = cursor.x + horizontalDir;
+                    var nextY = cursor.y + verticalDir;
+
+                    if (nextX < left || nextX > right) {
+                        horizontalDir = -horizontalDir;
+                    }
+
+                    if (nextY < top || nextY > bottom) {
+                        verticalDir = -verticalDir;
+                    }
+
+                    cursor.x += horizontalDir;
+                    cursor.y += verticalDir;
+
+                    var pixel = context.getImageData(cursor.x, cursor.y, 1, 1);
+                    var pixelColor = new Color("", pixel.data[0], pixel.data[1], pixel.data[2]);
+                    var useColor = foreColor;
+
+                    if (pixelColor.equals(foreColor)) {
+                        useColor = backColor;
+                    }
+
+                    pixel.data[0] = useColor.red;
+                    pixel.data[1] = useColor.green;
+                    pixel.data[2] = useColor.blue;
+
+                    context.putImageData(pixel, cursor.x, cursor.y);
+                }
+            };
+        }
+
+        function Animation() {
+            var enabled = true;
+            var recolor = false;
+            
+            this.isEnabled = function () { return enabled; };
+            this.start = function () { enabled = true; };
+            this.stop = function () { enabled = false; };
+
+            var foreColor = new Color($("#foreColor").val());
+            var backColor = new Color($("#backColor").val());
+
+            var canvasWidth = $("#canvas").width();
+            var canvasHeight = $("#canvas").height();
+
+            var boardWidth = parseInt($("#boardWidth").val());
+            var boardHeight = parseInt($("#boardHeight").val());
+
+            var cursorX = parseInt($("#cursorX").val());
+            var cursorY = parseInt($("#cursorY").val());
+
+            var speed = parseInt($("#speed").val());
+
+            var boards = [];
+            boards.push(new Board(canvasWidth, canvasHeight, boardWidth, boardHeight, speed, "nw", cursorX, cursorY));
+            boards.push(new Board(canvasWidth, canvasHeight, boardWidth, boardHeight, speed, "ne", cursorX, cursorY));
+            boards.push(new Board(canvasWidth, canvasHeight, boardWidth, boardHeight, speed, "sw", cursorX, cursorY));
+            boards.push(new Board(canvasWidth, canvasHeight, boardWidth, boardHeight, speed, "se", cursorX, cursorY));
+
+            var context = $("#canvas")[0].getContext("2d");
+            var imgData = context.createImageData(canvasWidth, canvasHeight);
+            for (i = 0; i < imgData.width * imgData.height * 4; i += 4) {
+                imgData.data[i + 0] = backColor.red;
+                imgData.data[i + 1] = backColor.green;
+                imgData.data[i + 2] = backColor.blue;
+                imgData.data[i + 3] = 255;
+            }
+            context.putImageData(imgData, 0, 0);
+
+            this.recolorRequested = function () {
+                recolor = true;
+            };
+
+            this.drawFrame = function () {
+                if (recolor) {
+                    applyColors();
+                    recolor = false;
+                }
+                else {
+                    drawBoards();
+                }
+            };
+
+            var drawBoards = function () {
+                for (var i = 0; i < boards.length; i++) {
+                    boards[i].drawFrame(context, foreColor, backColor);
+                }
+            };
+
+            var applyColors = function () {
+                enabled = false;
+
+                var f = new Color($("#foreColor").val());
+                var b = new Color($("#backColor").val());
+
+                var imgData = context.getImageData(0, 0, canvasWidth, canvasHeight);
+                var curColor, newColor;
+
+                for (var i = 0; i < imgData.data.length; i += 4) {
+                    curColor = new Color("", imgData.data[i], imgData.data[i + 1], imgData.data[i + 2]);
+
+                    if (curColor.equals(foreColor) && !foreColor.equals(f)) {
+                        newColor = f;
+                    }
+                    else if (curColor.equals(backColor) && !backColor.equals(b)) {
+                        newColor = b;
+                    }
+                    else {
+                        newColor = null;
+                    }
+
+                    if (newColor !== null) {
+
+                        imgData.data[i] = newColor.red;
+                        imgData.data[i + 1] = newColor.green;
+                        imgData.data[i + 2] = newColor.blue;
+                    }
+                }
+
+                context.putImageData(imgData, 0, 0);
+
+                foreColor = f;
+                backColor = b;
+
+                enabled = true;
+
+            };
+        }
+
+    </script>
+</head>
+<body>
+    <div>
+        Current drawing area is <span id="canvasWidth">800</span> pixels wide and <span id="canvasHeight">800</span> pixels high.<br />
+        Choose below the size for the overlapping boards and the drawing colors.
+        You may also experiment with the cursor origin.
+    </div>
+
+    <div id="settins">
+        <div id="sizes">
+            Board Witdh: <input id="boardWidth" type="number" min="401" max="800" value="401" />
+            Board Height: <input id="boardHeight" type="number" min="401" max="800" value="401" />
+        </div>
+        <div id="origins">
+            Cursor Horizontal: <input id="cursorX" type="number" min="0" max="800" value="0" />
+            Cursor Vertical: <input id="cursorY" type="number" min="0" max="800" value="0" />
+        </div>
+        <div id="colors">
+            Foreground color: <input id="foreColor" type="color" value="#000000" />
+            Backgroung color: <input id="backColor" type="color" value="#ffffff" />
+            <input type="button" id="swapColors" value="Swap" />
+        </div>
+        <div id="speeds">
+            Speed (pixels per frame): <input id="speed" type="number" min="1" max="200" value="1" />
+        </div>
+        <div id="controls">
+            <input type="button" id="draw" value="Go!" />
+            <input type="button" id="stop" value="Stop!" />
+            <input type="button" id="restart" value="Restart!" />
+        </div>
+    </div>
+
+    <div id="canvasContainer" style="border-color:Black; border-width:1px">
+        <canvas id="canvas" width="800 " height="800"></canvas>
+    </div>
+</body>
+</html>

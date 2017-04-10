@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sierpinski Triangle</title>
+    <script type="text/javascript" language="javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+
+    <script type="text/javascript" language="javascript">
+        var animation = null;
+        $(document).ready(function () {
+
+            var reqAnimFrame = window.mozRequestAnimationFrame ||
+                window.webkitRequestAnimationFrame ||
+                window.msRequestAnimationFrame ||
+                window.oRequestAnimationFrame
+                ;
+
+            var run = function (animation) {
+                if (animation.isEnabled()) {
+                    reqAnimFrame(function () {
+                        run(animation);
+                    });
+
+                    animation.drawFrame();
+                }
+            };
+
+            $("#draw").click(function () {
+                if (animation !== null) {
+                    animation.stop();
+                }
+
+                animation = new Animation();
+
+                run(animation);
+            });
+
+            $("#stop").click(function () {
+                if (animation !== null) {
+                    animation.stop();
+                }
+            });
+
+            $("#restart").click(function () {
+                if (animation === null) {
+                    animation = new Animation();
+                }
+                else {
+                    animation.start();
+                }
+
+                run(animation);
+            });
+
+        });
+
+        function Point(x, y) {
+            this.X = x;
+            this.Y = y;
+        }
+
+        function Triangle(top, left, right, depth) {
+            var _top = top;
+            var _left = left;
+            var _right = right;
+
+            var mid = function (p1, p2) {
+                var x1 = p1.hasOwnProperty("X") ? p1.X : 0;
+                var x2 = p2.hasOwnProperty("X") ? p2.X : 0;
+
+                var y1 = p1.hasOwnProperty("Y") ? p1.Y : 0;
+                var y2 = p2.hasOwnProperty("Y") ? p2.Y : 0;
+
+                var xm = (x1 + x2) / 2;
+                var ym = (y1 + y2) / 2;
+
+                return new Point(xm, ym);
+            };
+
+            var p1 = mid(top, left);
+            var p2 = mid(left, right);
+            var p3 = mid(top, right);
+
+            var _depth = depth;
+
+            this.fill = function (context) {
+                context.beginPath();
+                context.moveTo(p1.X, p1.Y);
+                context.lineTo(p2.X, p2.Y);
+                context.lineTo(p3.X, p3.Y);
+                context.fill();
+            };
+
+            this.split = function (maxDepth) {
+                var array = null;
+
+                if (_depth < maxDepth) {
+                    var depth = _depth + 1;
+
+                    array = [
+                        new Triangle(p3, p2, right, depth),
+                        new Triangle(p1, left, p2, depth),
+                        new Triangle(top, p1, p3, depth)
+                    ];
+                }
+
+                return array;
+            };
+        }
+
+        function Animation() {
+            var enabled = true;
+
+            var stack = null;
+            var context;
+            var maxDepth;
+
+            this.isEnabled = function () {
+                return enabled;
+            };
+
+            this.start = function () {
+                enabled = true;
+            };
+
+            this.stop = function () {
+                enabled = false;
+            };
+
+            this.drawFrame = function () {
+                if (stack === null) {
+                    drawFirstFrame();
+                    return;
+                }
+
+                if (stack.length > 0) {
+                    var t = stack.pop();
+                    t.fill(context);
+
+                    var array = t.split(maxDepth);
+
+                    if (array !== null) {
+                        for (var i = 0; i < array.length; i++) {
+                            stack.push(array[i]);
+                        }
+                    }
+                }
+                else {
+                    this.stop();
+                }
+            };
+
+            var drawFirstFrame = function () {
+                stack = new Array();
+                $c = $("#canvas");
+                context = $c[0].getContext("2d");
+
+                var top = new Point($c.width() / 2, 0);
+                var left = new Point(0, $c.height());
+                var right = new Point($c.width(), $c.height());
+                maxDepth = parseInt($("#depth").val());
+
+                context.fillStyle = $("#bgColor").val();
+                context.beginPath();
+                context.moveTo(top.X, top.Y);
+                context.lineTo(left.X, left.Y);
+                context.lineTo(right.X, right.Y);
+                context.fill();
+
+                context.fillStyle = $("#fgColor").val();
+
+                stack.push(new Triangle(top, left, right, 1));
+            }
+        }
+
+
+    </script>
+</head>
+<body>
+    <div id="controls">
+        <span>Triangle depth: </span>
+        <input type="number" id="depth" min="1" max="10" value="1" />
+        <input type="button" id="draw" value="Go!" />
+        <input type="button" id="stop" value="Stop!" />
+        <input type="button" id="restart" value="Restart!" />
+        <br />
+        <span>Background color:</span>
+        <input id="bgColor" type="color" value="#000000" />
+        <span>Foreground color:</span>
+        <input id="fgColor" type="color" value="#ffffff" />
+    </div>
+    <div>
+        <canvas id="canvas" width="800" height="800"></canvas>
+    </div>
+</body>
+</html>
